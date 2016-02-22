@@ -35,7 +35,7 @@
 - name: Create Mysql configuration file
   template: src=my.cnf dest=/etc/my.cnf
   notify:
-  - restart mysql
+  - mysql restart
 
 - name: Start Mysql Service
   service: name=mysqld state=started enabled=true

@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  author: ice9js
+  company: Crystal Planet Studio
+  license: license (MIT)
+
+  description: Installs facebook's HHVM on CentOS 7 servers
+
+  min_ansible_version: 1.2
+
+  platforms:
+  - name: EL
+    versions:
+      - 7
+
+  categories:
+    - web
+    - development
+    - system

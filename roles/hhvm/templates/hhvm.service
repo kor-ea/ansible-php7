@@ -1,0 +1,13 @@
+[Unit]
+Description=HHVM
+#After=docker.service
+#Requires=docker.service
+
+[Service]
+PIDFile=/var/run/hhvm/hhvm.pid
+ExecStart=/usr/bin/hhvm --mode daemon --config /etc/hhvm/config.ini --user nginx
+Restart=on-abort
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

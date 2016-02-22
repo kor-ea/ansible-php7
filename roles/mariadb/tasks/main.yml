@@ -1,0 +1,45 @@
+---
+
+- name: Install Mysql package
+  yum: name={{ item }} state=present
+  with_items:
+   - mariadb-server
+   - mariadb
+
+- name: Create Mysql configuration file
+  template: src=my.cnf dest=/etc/my.cnf
+  register: mysql_conf
+
+- name: Run mysql_install_db
+  command: mysql_install_db
+  when: mysql_conf.changed
+
+- name: Start Mysql Service
+  service: name=mariadb state=started enabled=true
+
+- name: If .my.cnf exists
+  stat: path=/root/.my.cnf
+  register: stat_result
+
+- name: update mysql root password for all root accounts
+  mysql_user: 
+    check_implicit_admin=yes
+    name=root 
+    host=localhost 
+    password={{ mysql_root_password }}
+  when: not stat_result.stat.exists
+
+- name: copy .my.cnf file with root password credentials
+  template: src=.my.cnf dest=/root/.my.cnf owner=root mode=0600
+  when: not stat_result.stat.exists
+
+- name: ensure anonymous users are not in the database
+  mysql_user: name='' host=$item state=absent
+  with_items:
+    - localhost
+    - $inventory_hostname
+  when: not stat_result.stat.exists
+
+- name: remove the test database
+  mysql_db: name=test state=absent
+  when: not stat_result.stat.exists

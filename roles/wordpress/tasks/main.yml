@@ -11,7 +11,7 @@
   file: path={{ wp_doc_root }}/{{ inventory_hostname }} state=directory owner={{ web_user }} group={{ web_group }}
 
 - name: "Set up virtualhosts"
-  template: src=etc/nginx/php.conf dest=/etc/nginx/sites-available/{{ inventory_hostname }}
+  template: src=etc/nginx/hhvm.conf dest=/etc/nginx/sites-available/{{ inventory_hostname }}
 
 - name: "Enable {{ enviro }} virtualhosts"
   file: src=/etc/nginx/sites-available/{{ inventory_hostname }} dest=/etc/nginx/sites-enabled/{{ inventory_hostname }} state=link

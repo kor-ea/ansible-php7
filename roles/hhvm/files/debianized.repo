@@ -1,0 +1,5 @@
+[debianized]
+name=debianized packages for Enterprise Linux 7 - \$basearch
+baseurl=http://repo.debianized.net/centos/7/RPMS/\$basearch
+enabled=1
+gpgcheck=0

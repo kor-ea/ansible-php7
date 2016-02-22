@@ -5,10 +5,11 @@
 
   roles:
     - common
-    - { role: hhvm, when: ansible_lsb.major_release | int >= 14 }
+#    - { role: hhvm, when: ansible_lsb.major_release | int >= 14 }
     - php-fpm
     - memcached
-    - percona
+#    - percona
+    - {role: mysql, tags: ['mysql']}
     - nginx
     - wp-cli
     - varnish

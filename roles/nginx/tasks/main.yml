@@ -1,18 +1,17 @@
 ---
-- name: Install Nginx GPG key
-  run_once: true
-  apt_key: url=http://nginx.org/keys/nginx_signing.key state=present
+#- name: Install Nginx GPG key
+#  run_once: true
+#  apt_key: url=http://nginx.org/keys/nginx_signing.key state=present
 
-- name: Enable Nginx stable repo
-  run_once: true
-  apt_repository: repo='deb http://nginx.org/packages/ubuntu {{ ansible_lsb.codename }} nginx' state=present update_cache=yes
+#- name: Enable Nginx stable repo
+#  run_once: true
+#  apt_repository: repo='deb http://nginx.org/packages/ubuntu {{ ansible_lsb.codename }} nginx' state=present update_cache=yes
 
 - name: Install nginx
   run_once: true
-  apt: name=nginx state=present
+  yum: name=nginx state=present
   notify:
     - nginx restart
-    - update-rc nginx
 
 - name: Ensure /etc/nginx directories exist
   run_once: true
@@ -20,6 +19,7 @@
   with_items:
     - /etc/nginx/sites-available
     - /etc/nginx/sites-enabled
+    - /etc/nginx/conf.d
 
 - name: Configure /etc/nginx/nginx.conf
   run_once: true
@@ -54,3 +54,6 @@
 - name: Make sure Nginx is running
   run_once: true
   service: name=nginx state=started enabled=yes
+
+- name: Start php-fpm Service
+  service: name=php-fpm state=started enabled=true

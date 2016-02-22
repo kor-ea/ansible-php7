@@ -1,111 +1,231 @@
+#
+# This is an example VCL file for Varnish.
+#
+# It does not do anything by default, delegating control to the
+# builtin VCL. The builtin VCL is called when there is no explicit
+# return statement.
+#
+# See the VCL chapters in the Users Guide at https://www.varnish-cache.org/docs/
+# and http://varnish-cache.org/trac/wiki/VCLExamples for more examples.
+
+# Update of varnish 4 to work with wordpress
+# Marker to tell the VCL compiler that this VCL has been adapted to the
+# new 4.0 format.
+vcl 4.0;
+
+# Default backend definition. Set this to point to your content server.
 backend default {
     .host = "127.0.0.1";
     .port = "8080";
+    .connect_timeout = 600s;
+    .first_byte_timeout = 600s;
+    .between_bytes_timeout = 600s;
+    .max_connections = 800;
 }
 
+# Only allow purging from specific IPs
 acl purge {
-        "127.0.0.1";
+    "localhost";
+    "127.0.0.1";
 }
 
+# This function is used when a request is send by a HTTP client (Browser)
 sub vcl_recv {
-	# Allow purge requests
-	if (req.request == "PURGE") {
+	# Normalize the header, remove the port (in case you're testing this on various TCP ports)
+	set req.http.Host = regsub(req.http.Host, ":[0-9]+", "");
+
+	# Remove has_js and CloudFlare/Google Analytics __* cookies.
+	set req.http.Cookie = regsuball(req.http.Cookie, "(^|;\s*)(_[_a-z]+|has_js)=[^;]*", "");
+	# Remove a ";" prefix, if present.
+	set req.http.Cookie = regsub(req.http.Cookie, "^;\s*", "");
+
+	# Allow purging from ACL
+	if (req.method == "PURGE") {
+		# If not allowed then a error 405 is returned
 		if (!client.ip ~ purge) {
-			error 405 "Not allowed.";
+			return(synth(405, "This IP is not allowed to send PURGE requests."));
 		}
-		ban("req.url ~ ^" + req.url + " && req.http.host == " + req.http.host);
-		return(lookup);
+		# If allowed, do a cache_lookup -> vlc_hit() or vlc_miss()
+		return (purge);
 	}
 
-	# Add header for sending client ip to backend
-	set     req.http.X-Forwarded-For = client.ip;
+	# Post requests will not be cached
+	if (req.http.Authorization || req.method == "POST") {
+		return (pass);
+	}
 
-	# Normalize     content-encoding
+	# --- WordPress specific configuration
+
+	# Did not cache the admin and login pages
+	if (req.url ~ "wp-(login|admin)" || req.url ~ "preview=true") {
+	return (pass);
+	}
+
+	# Remove the "has_js" cookie
+	set req.http.Cookie = regsuball(req.http.Cookie, "has_js=[^;]+(; )?", "");
+
+	# Remove any Google Analytics based cookies
+	set req.http.Cookie = regsuball(req.http.Cookie, "__utm.=[^;]+(; )?", "");
+
+	# Remove the Quant Capital cookies (added by some plugin, all __qca)
+	set req.http.Cookie = regsuball(req.http.Cookie, "__qc.=[^;]+(; )?", "");
+
+	# Remove the wp-settings-1 cookie
+	set req.http.Cookie = regsuball(req.http.Cookie, "wp-settings-1=[^;]+(; )?", "");
+
+	# Remove the wp-settings-time-1 cookie
+	set req.http.Cookie = regsuball(req.http.Cookie, "wp-settings-time-1=[^;]+(; )?", "");
+
+	# Remove the wp test cookie
+	set req.http.Cookie = regsuball(req.http.Cookie, "wordpress_test_cookie=[^;]+(; )?", "");
+
+	# Are there cookies left with only spaces or that are empty?
+	if (req.http.cookie ~ "^ *$") {
+		    unset req.http.cookie;
+	}
+
+	# Cache the following files extensions
+	if (req.url ~ "\.(css|js|png|gif|jp(e)?g|swf|ico)") {
+		unset req.http.cookie;
+	}
+
+	# Normalize Accept-Encoding header and compression
+	# https://www.varnish-cache.org/docs/3.0/tutorial/vary.html
 	if (req.http.Accept-Encoding) {
-		if (req.url ~ "\.(jpg|png|gif|gz|tgz|bz2|lzma|tbz)(\?.*|)$") {
-			remove req.http.Accept-Encoding;
+		# Do no compress compressed files...
+		if (req.url ~ "\.(jpg|png|gif|gz|tgz|bz2|tbz|mp3|ogg)$") {
+			   	unset req.http.Accept-Encoding;
 		} elsif (req.http.Accept-Encoding ~ "gzip") {
-			set req.http.Accept-Encoding = "gzip";
+		    	set req.http.Accept-Encoding = "gzip";
 		} elsif (req.http.Accept-Encoding ~ "deflate") {
-			set req.http.Accept-Encoding = "deflate";
+		    	set req.http.Accept-Encoding = "deflate";
 		} else {
-			remove req.http.Accept-Encoding;
+			unset req.http.Accept-Encoding;
 		}
 	}
 
-    # Remove cookies and query string for real static files
-    if (req.url ~ "^/[^?]+\.(gif|jpg|jpeg|swf|css|js|txt|flv|mp3|mp4|pdf|ico|png|gz|zip|lzma|bz2|tgz|tbz)(\?.*|)$") {
-       unset req.http.cookie;
-       set req.url = regsub(req.url, "\?.*$", "");
-    }
+	# Check the cookies for wordpress-specific items
+	if (req.http.Cookie ~ "wordpress_" || req.http.Cookie ~ "comment_") {
+		return (pass);
+	}
+	if (!req.http.cookie) {
+		unset req.http.cookie;
+	}
 
-	# dont cache woocommerce pages or yith wishlist
-	if (req.url ~ "^/(cart|my-account|checkout|addons|wishlist)") {
-		return (pass);
-	}
-	if (req.url ~ "^/(cart|my-account|checkout|addons|wishlist)/") {
-		return (pass);
-	}
-	if (req.url ~ "(cart|my-account|checkout|addons|wishlist)") {
-		return (pass);
-	}
-	if (req.url ~ "(cart|my-account|checkout|addons|wishlist)/") {
-		return (pass);
-	}
-	if ( req.url ~ "\?add-to-cart=" ) {
+	# --- End of WordPress specific configuration
+
+	# Did not cache HTTP authentication and HTTP Cookie
+	if (req.http.Authorization || req.http.Cookie) {
+		# Not cacheable by default
 		return (pass);
 	}
 
-    # Don't cache admin
-    if (req.url ~ "((wp-(login|admin|comments-post.php|cron.php))|login|timthumb|wrdp_files)" || req.url ~ "preview=true" || req.url ~ "xmlrpc.php") {
-        return (pass);
-    } else {
-        if ( !(req.http.cookie ~ "wpoven-no-cache") ) {
-            unset req.http.cookie;
-        }
-    }
+	# Cache all others requests
+	return (hash);
 }
 
-sub vcl_hit {
-	# purge cached objects from memory
-	if (req.request == "PURGE") {
-			purge;
-			error 200 "Purged";
-	}
+sub vcl_pipe {
+	return (pipe);
 }
 
-sub vcl_miss {
-	# purge cached objects variants from memory
-	if (req.request == "PURGE") {
-		if (!client.ip ~ purge) {
-			error 405 "Not allowed.";
-		}
-		ban("req.url ~ "+req.url);
-		error 200 "Purged";
-	}
-
-	if (req.request == "PURGE") {
-			purge;
-			error 404 "Purged varients";
-	}
+sub vcl_pass {
+	return (fetch);
 }
 
-sub vcl_fetch {
-	# Dont cache admin
-	if (req.url ~ "(wp-(login|admin|comments-post.php|cron.php))|login" || req.url ~ "preview=true" || req.url ~ "xmlrpc.php") {
+# The data on which the hashing will take place
+sub vcl_hash {
+ 	hash_data(req.url);
+ 	if (req.http.host) {
+     	hash_data(req.http.host);
+ 	} else {
+     	hash_data(server.ip);
+ 	}
+
+	# If the client supports compression, keep that in a different cache
+    	if (req.http.Accept-Encoding) {
+        	hash_data(req.http.Accept-Encoding);
+	}
+
+	return (lookup);
+}
+
+# This function is used when a request is sent by our backend (Nginx server)
+sub vcl_backend_response {
+	# Remove some headers we never want to see
+	unset beresp.http.Server;
+	unset beresp.http.X-Powered-By;
+
+	# For static content strip all backend cookies
+	if (bereq.url ~ "\.(css|js|png|gif|jp(e?)g)|swf|ico") {
+		unset beresp.http.cookie;
+	}
+	# Don't store backend
+	if (bereq.url ~ "wp-(login|admin)" || bereq.url ~ "preview=true") {
+		set beresp.uncacheable = true;
+		set beresp.ttl = 30s;
 		return (deliver);
-	} else {
-		if ( beresp.ttl > 0s && !(beresp.http.set-cookie ~ "wpoven-no-cache") ) {
-			unset beresp.http.set-cookie;
-		}
 	}
+
+	# Only allow cookies to be set if we're in admin area
+		if (!(bereq.url ~ "(wp-login|wp-admin|preview=true)")) {
+        	unset beresp.http.set-cookie;
+	}
+
+	# don't cache response to posted requests or those with basic auth
+	if ( bereq.method == "POST" || bereq.http.Authorization ) {
+        	set beresp.uncacheable = true;
+		set beresp.ttl = 120s;
+		return (deliver);
+    	}
+
+    	# don't cache search results
+	if ( bereq.url ~ "\?s=" ){
+		set beresp.uncacheable = true;
+                set beresp.ttl = 120s;
+                return (deliver);
+	}
+
+	# only cache status ok
+	if ( beresp.status != 200 ) {
+		set beresp.uncacheable = true;
+                set beresp.ttl = 120s;
+                return (deliver);
+	}
+
+	# A TTL of 2h
+	set beresp.ttl = 2h;
+	# Define the default grace period to serve cached content
+	set beresp.grace = 30s;
+
+	return (deliver);
 }
 
+# The routine when we deliver the HTTP request to the user
+# Last chance to modify headers that are sent to the client
 sub vcl_deliver {
-    # Remove unwanted headers
-    unset resp.http.Server;
-    unset resp.http.X-Powered-By;
-    unset resp.http.x-backend;
-    unset resp.http.Via;
-    unset resp.http.X-Varnish;
+	if (obj.hits > 0) {
+		set resp.http.X-Cache = "cached";
+	} else {
+		set resp.http.x-Cache = "uncached";
+	}
+
+	# Remove some headers: PHP version
+	unset resp.http.X-Powered-By;
+
+	# Remove some headers: Apache version & OS
+	unset resp.http.Server;
+
+	# Remove some heanders: Varnish
+	unset resp.http.Via;
+	unset resp.http.X-Varnish;
+
+	return (deliver);
+}
+
+sub vcl_init {
+ 	return (ok);
+}
+
+sub vcl_fini {
+ 	return (ok);
 }

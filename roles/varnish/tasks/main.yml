@@ -1,21 +1,27 @@
 ---
 
-- name: Fill the varnish GPG Key
-  run_once: true
-  apt_key: data="{{ lookup('file', '../files/varnish-cache.gpg.key') }}"
+#- name: Fill the varnish GPG Key
+#  run_once: true
+#  apt_key: data="{{ lookup('file', '../files/varnish-cache.gpg.key') }}"
 
 - name: Add the varnish cache repo file
   run_once: true
-  apt_repository: repo='deb http://repo.varnish-cache.org/ubuntu/ {{ ansible_lsb.codename }} varnish-{{ varnish_version }}' state=present update_cache=yes
+  yum: name=https://repo.varnish-cache.org/redhat/varnish-4.1.el7.rpm state=present disable_gpg_check=yes 
 
 - name: Install Varnish
   run_once: true
-  apt: name=varnish state=present
+  yum: name=varnish state=present
   notify: varnish reload
+
 
 - name: Ensure varnish config
   run_once: true
   template: src=etc/default/varnish dest=/etc/default/varnish owner=root group=root mode=0644
+  notify: varnish reload
+
+- name: Ensure varnish config
+  run_once: true
+  template: src=varnish.params dest=/etc/varnish/varnish.params owner=root group=root mode=0644
   notify: varnish reload
 
 - name: Ensure varnish default.vcl

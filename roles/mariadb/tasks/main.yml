@@ -10,6 +10,10 @@
   template: src=my.cnf dest=/etc/my.cnf
   register: mysql_conf
 
+- group: name=mysql
+- user: name=mysql group=mysql
+- file: path=/var/log/mysqld.log state=touch owner=mysql group=mysql
+
 - name: Run mysql_install_db
   command: mysql_install_db
   when: mysql_conf.changed

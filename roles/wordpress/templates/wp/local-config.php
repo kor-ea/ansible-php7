@@ -18,12 +18,12 @@ define('DB_CHARSET', 'utf8');
 /** The Database Collate type. Don't change this if in doubt. */
 define('DB_COLLATE', '');
 
-global $memecached_servers;
+#global $memecached_servers;
 
-$memcached_servers = array(
-    'default' => array(
-        '127.0.0.1:11211'
-    )
-);
+#$memcached_servers = array(
+#    'default' => array(
+#        '127.0.0.1:11211'
+#    )
+#);
 
-define('WP_CACHE_KEY_SALT', '{{ db }}_1');
+#define('WP_CACHE_KEY_SALT', '{{ db }}_1');

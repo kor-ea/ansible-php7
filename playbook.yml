@@ -5,9 +5,9 @@
 
   roles:
     - common
-    - hhvm
-    - php-fpm
-    - memcached
+#    - hhvm
+    - {role: php-fpm, tags: ['php']}
+#    - memcached
 #    - percona
 #    - {role: mysql, tags: ['mysql']}
     - {role: mariadb, tags: ['mysql']}

@@ -11,7 +11,7 @@
     - git
     - curl
     - unzip
-    - php-mysql
+#    - php-mysql
     - traceroute
     - autojump
     - siege
@@ -29,6 +29,9 @@
 - name: Install Boris
   run_once: true
   get_url: url=https://github.com/d11wtq/boris/releases/download/v1.0.8/boris.phar dest=/usr/local/bin/boris mode=0755 validate_certs=no
+
+- group: name=nginx
+- user: name=nginx group=nginx
 
 #- name: Fix the stdin bug, step 1
 #  run_once: true

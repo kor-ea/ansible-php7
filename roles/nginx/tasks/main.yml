@@ -55,9 +55,9 @@
   run_once: true
   service: name=nginx state=started enabled=yes
 
-- name: Ensure HHVM is running
-  run_once: true
-  service: name=hhvm state=started enabled=yes
+#- name: Ensure HHVM is running
+#  run_once: true
+#  service: name=hhvm state=started enabled=yes
 
 - name: Ensure PHP-FPM is running
   run_once: true

@@ -36,4 +36,4 @@
 
 - name: Ensure Varnish is running
   run_once: true
-  service: name=varnish state=running
+  service: name=varnish state=running enabled=yes

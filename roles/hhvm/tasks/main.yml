@@ -1,11 +1,13 @@
 ---
 - name: Add the debianized repo file
-  copy: src=debianized.repo dest=/etc/yum.repos.d/debianized.repo
+#  copy: src=debianized.repo dest=/etc/yum.repos.d/debianized.repo
+  template: src=no1youknowz-hhvm-repo-epel-7.repo dest=/etc/yum.repos.d/no1youknowz-hhvm-repo-epel-7.repo
 
 - name: Install hhvm
   yum: "name={{ item }} state=present"
   with_items:
-    - "hhvm-{{ hhvm_version }}"
+#    - "hhvm-{{ hhvm_version }}"
+    - hhvm
 - name: new service config
   template: src=hhvm.service dest=/etc/systemd/system/hhvm.service
 

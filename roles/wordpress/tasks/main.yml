@@ -42,3 +42,5 @@
   sudo_user: "{{ web_user }}"
   args:
       chdir: "{{ wp_doc_root }}/{{ inventory_hostname }}"
+
+- selinux: policy=targeted state=enforcing

@@ -13,6 +13,9 @@
 - name: "Set up virtualhosts"
   template: src=etc/nginx/php.conf dest=/etc/nginx/sites-available/{{ inventory_hostname }}
 
+- template: src=nginx.crt dest=/etc/nginx/nginx.crt
+- template: src=nginx.key dest=/etc/nginx/nginx.key
+
 - name: "Enable {{ enviro }} virtualhosts"
   file: src=/etc/nginx/sites-available/{{ inventory_hostname }} dest=/etc/nginx/sites-enabled/{{ inventory_hostname }} state=link
   notify: nginx reload

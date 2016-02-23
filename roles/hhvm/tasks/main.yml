@@ -11,8 +11,11 @@
 - name: new service config
   template: src=hhvm.service dest=/etc/systemd/system/hhvm.service
 
+- group: name=nginx
+- user: name=nginx group=nginx
+
 - name: change permissions
-  file: path=/var/run/hhvm owner=nginx
+  file: path=/var/run/hhvm owner=nginx state=directory
 
 - name: Do /etc/hhvm/server.ini
   run_once: true
